@@ -31,13 +31,25 @@ def hex_to_rgb(hex_color):
     hex_color = hex_color.lstrip('#')
     return tuple(int(hex_color[i:i+2], 16) for i in (0, 2, 4))
 
-def download_image(url):
-    """Baixa imagem de uma URL"""
-    response = requests.get(url, timeout=30)
-    response.raise_for_status()
-    return Image.open(BytesIO(response.content))
+def download_image(url_or_base64):
+    """Baixa imagem de uma URL ou decodifica base64"""
+    # Verificar se é base64
+    if url_or_base64.startswith('data:image'):
+        # Formato: data:image/png;base64,iVBORw0KG...
+        base64_data = url_or_base64.split(',')[1]
+        image_data = base64.b64decode(base64_data)
+        return Image.open(BytesIO(image_data))
+    elif url_or_base64.startswith('iVBORw0KG') or url_or_base64.startswith('/9j/'):
+        # Base64 puro (PNG ou JPEG)
+        image_data = base64.b64decode(url_or_base64)
+        return Image.open(BytesIO(image_data))
+    else:
+        # URL normal
+        response = requests.get(url_or_base64, timeout=30)
+        response.raise_for_status()
+        return Image.open(BytesIO(response.content))
 
-def add_overlay(image_url, title, category):
+def add_overlay(image_url_or_base64, title, category):
     """
     Adiciona overlay de texto na imagem
     
@@ -46,10 +58,15 @@ def add_overlay(image_url, title, category):
     - Altura: 1080px
     - Formato: PNG
     - Qualidade: Alta (sem compressão)
+    
+    Aceita:
+    - URL: https://example.com/image.jpg
+    - Base64 com prefixo: data:image/png;base64,iVBORw0KG...
+    - Base64 puro: iVBORw0KG... (PNG) ou /9j/... (JPEG)
     """
     
-    # Baixar imagem
-    img = download_image(image_url)
+    # Baixar ou decodificar imagem
+    img = download_image(image_url_or_base64)
     
     # Redimensionar para 1080x1080 (Instagram square)
     # IMPORTANTE: Este é o tamanho exato que deve ser usado no DALL-E 3
@@ -154,7 +171,14 @@ def health_check():
 
 @app.route('/add-overlay', methods=['POST'])
 def add_overlay_endpoint():
-    """Endpoint para adicionar overlay"""
+    """
+    Endpoint para adicionar overlay
+    
+    Aceita imageUrl como:
+    - URL: https://example.com/image.jpg
+    - Base64 com prefixo: data:image/png;base64,iVBORw0KG...
+    - Base64 puro: iVBORw0KG... (PNG) ou /9j/... (JPEG)
+    """
     try:
         data = request.get_json()
         
@@ -162,7 +186,8 @@ def add_overlay_endpoint():
         if not data or 'imageUrl' not in data or 'title' not in data or 'category' not in data:
             return jsonify({
                 'error': 'Missing required fields',
-                'required': ['imageUrl', 'title', 'category']
+                'required': ['imageUrl', 'title', 'category'],
+                'note': 'imageUrl can be a URL or base64 string'
             }), 400
         
         image_url = data['imageUrl']

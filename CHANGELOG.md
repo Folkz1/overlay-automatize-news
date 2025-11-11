@@ -1,5 +1,35 @@
 # Changelog - Microserviço Overlay Python
 
+## Versão 1.2 - 11/11/2025
+
+### ✨ Novo: Suporte a Base64
+
+#### Aceita 3 formatos de imagem:
+- ✅ **URL:** `https://example.com/image.jpg`
+- ✅ **Base64 com prefixo:** `data:image/png;base64,iVBORw0KG...`
+- ✅ **Base64 puro:** `iVBORw0KG...` (PNG) ou `/9j/...` (JPEG)
+
+#### Arquivos Docker para Deploy
+- ✅ `Dockerfile` - Build otimizado
+- ✅ `.dockerignore` - Ignora arquivos desnecessários
+- ✅ Guias de deploy para Easypanel
+
+#### Testes
+- ✅ `test_base64.py` - Testa todos os formatos de imagem
+- ✅ Compatibilidade mantida com URLs
+
+### 📝 Exemplo de Uso Base64
+
+```json
+{
+  "imageUrl": "data:image/jpeg;base64,/9j/4AAQSkZJRg...",
+  "title": "TESTE COM BASE64",
+  "category": "SUPLEMENTOS"
+}
+```
+
+---
+
 ## Versão 1.1 - 10/11/2025
 
 ### ✨ Melhorias

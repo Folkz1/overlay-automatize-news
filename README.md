@@ -37,8 +37,14 @@ Deve aparecer:
 
 ### 4. Testar (Outro Terminal)
 
+**Teste básico:**
 ```bash
 python test.py
+```
+
+**Teste com base64:**
+```bash
+python test_base64.py
 ```
 
 Isso vai gerar várias imagens PNG de exemplo!
@@ -63,6 +69,11 @@ Content-Type: application/json
   "category": "SUPLEMENTOS"
 }
 ```
+
+**imageUrl aceita:**
+- ✅ URL: `https://example.com/image.jpg`
+- ✅ Base64 com prefixo: `data:image/png;base64,iVBORw0KG...`
+- ✅ Base64 puro: `iVBORw0KG...` (PNG) ou `/9j/...` (JPEG)
 
 ## 🎨 Categorias e Cores
 
