@@ -2,10 +2,12 @@ FROM python:3.11-slim
 
 WORKDIR /app
 
-# Instalar dependências do sistema para Pillow
+# Instalar dependências do sistema para Pillow e fontes
 RUN apt-get update && apt-get install -y \
     libjpeg-dev \
     zlib1g-dev \
+    fontconfig \
+    fonts-dejavu-core \
     && rm -rf /var/lib/apt/lists/*
 
 # Copiar requirements

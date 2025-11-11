@@ -4,6 +4,7 @@ import requests
 from io import BytesIO
 import base64
 import os
+import sys
 
 app = Flask(__name__)
 
@@ -12,6 +13,22 @@ PORT = 3000
 FONT_SIZE_LOGO = 52
 FONT_SIZE_CATEGORY = 26
 FONT_SIZE_TITLE = 38
+
+# Caminhos de fontes por sistema operacional
+FONT_PATHS = {
+    'windows': [
+        'C:/Windows/Fonts/arial.ttf',
+        'C:/Windows/Fonts/arialbd.ttf',
+    ],
+    'linux': [
+        '/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf',
+        '/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf',
+    ],
+    'darwin': [  # macOS
+        '/System/Library/Fonts/Helvetica.ttc',
+        '/System/Library/Fonts/Helvetica.ttc',
+    ]
+}
 
 # Cores por categoria
 CATEGORY_COLORS = {
@@ -30,6 +47,67 @@ def hex_to_rgb(hex_color):
     """Converte cor hexadecimal para RGB"""
     hex_color = hex_color.lstrip('#')
     return tuple(int(hex_color[i:i+2], 16) for i in (0, 2, 4))
+
+def load_font(size, bold=False):
+    """
+    Carrega fonte TrueType com fallback inteligente
+    Tenta múltiplos caminhos dependendo do sistema operacional
+    """
+    # Detectar sistema operacional
+    platform = sys.platform
+    
+    # Lista de fontes para tentar
+    font_attempts = []
+    
+    if platform.startswith('win'):
+        # Windows
+        if bold:
+            font_attempts = [
+                'C:/Windows/Fonts/arialbd.ttf',
+                'C:/Windows/Fonts/arial.ttf',
+                'arial.ttf',
+            ]
+        else:
+            font_attempts = [
+                'C:/Windows/Fonts/arial.ttf',
+                'arial.ttf',
+            ]
+    elif platform.startswith('linux'):
+        # Linux (incluindo Docker)
+        if bold:
+            font_attempts = [
+                '/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf',
+                '/usr/share/fonts/truetype/liberation/LiberationSans-Bold.ttf',
+                '/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf',
+            ]
+        else:
+            font_attempts = [
+                '/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf',
+                '/usr/share/fonts/truetype/liberation/LiberationSans-Regular.ttf',
+            ]
+    elif platform.startswith('darwin'):
+        # macOS
+        font_attempts = [
+            '/System/Library/Fonts/Helvetica.ttc',
+            '/Library/Fonts/Arial.ttf',
+        ]
+    
+    # Tentar carregar cada fonte
+    for font_path in font_attempts:
+        try:
+            return ImageFont.truetype(font_path, size)
+        except:
+            continue
+    
+    # Se nenhuma fonte funcionar, criar fonte sintética grande
+    # (melhor que a fonte padrão de 11px)
+    print(f"⚠️ Aviso: Nenhuma fonte TrueType encontrada, usando fallback")
+    try:
+        # Tentar criar uma fonte maior mesmo sem TrueType
+        return ImageFont.truetype("DejaVuSans.ttf", size)
+    except:
+        # Último recurso: fonte padrão (vai ficar pequena)
+        return ImageFont.load_default()
 
 def download_image(url_or_base64):
     """Baixa imagem de uma URL ou decodifica base64"""
@@ -86,16 +164,10 @@ def add_overlay(image_url_or_base64, title, category):
         alpha = int(((y - 700) / 380) * 240)  # 0 a 240 (mais escuro)
         draw.rectangle([(0, y), (1080, y+1)], fill=(0, 0, 0, alpha))
     
-    # Tentar carregar fonte (usar padrão se não encontrar)
-    try:
-        font_logo = ImageFont.truetype("arial.ttf", FONT_SIZE_LOGO)
-        font_category = ImageFont.truetype("arialbd.ttf", FONT_SIZE_CATEGORY)
-        font_title = ImageFont.truetype("arialbd.ttf", FONT_SIZE_TITLE)
-    except:
-        # Usar fonte padrão se Arial não estiver disponível
-        font_logo = ImageFont.load_default()
-        font_category = ImageFont.load_default()
-        font_title = ImageFont.load_default()
+    # Carregar fontes com fallback inteligente
+    font_logo = load_font(FONT_SIZE_LOGO, bold=False)
+    font_category = load_font(FONT_SIZE_CATEGORY, bold=True)
+    font_title = load_font(FONT_SIZE_TITLE, bold=True)
     
     # Logo "NutrIA" (canto superior esquerdo)
     # Desenhar "Nutr" em branco
