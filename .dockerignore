@@ -1,0 +1,17 @@
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.Python
+*.so
+*.egg
+*.egg-info/
+dist/
+build/
+test_*.png
+.env
+README.md
+CHANGELOG.md
+TESTE_RAPIDO.md
+TESTAR_AGORA.md
+DEPLOY_EASYPANEL.md
