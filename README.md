@@ -49,6 +49,43 @@ python test_base64.py
 
 Isso vai gerar várias imagens PNG de exemplo!
 
+## ⚙️ Configuração
+
+### Via .env (Configurações Padrão)
+
+Copie `.env.example` para `.env` e ajuste:
+
+```env
+# Tamanhos de fonte
+FONT_SIZE_LOGO=52
+FONT_SIZE_CATEGORY=26
+FONT_SIZE_TITLE=38
+
+# Cores do logo (RGB)
+LOGO_COLOR_NUTR=255,255,255
+LOGO_COLOR_IA=255,107,0
+
+# Cores por categoria (HEX)
+COLOR_SUPLEMENTOS=#00FF00
+COLOR_TREINO=#FF6B00
+COLOR_NUTRICAO=#00D4FF
+COLOR_FOFOCA_MAROMBA=#FF00FF
+COLOR_FITNESS=#FFD700
+
+# Textos do logo
+TEXT_LOGO_PART1=Nutr
+TEXT_LOGO_PART2=IA
+
+# Zoom inteligente
+ZOOM_ENABLED=true
+ZOOM_FACTOR=1.2
+ZOOM_FOCUS=center
+```
+
+### Via JSON (Por Requisição)
+
+Você pode sobrescrever qualquer configuração por requisição! Veja `EXEMPLOS_CONFIG.md` para mais detalhes.
+
 ## 📡 API
 
 ### Health Check
@@ -57,7 +94,7 @@ Isso vai gerar várias imagens PNG de exemplo!
 GET http://localhost:3000/health
 ```
 
-### Adicionar Overlay
+### Adicionar Overlay (Básico)
 
 ```bash
 POST http://localhost:3000/add-overlay
@@ -70,10 +107,43 @@ Content-Type: application/json
 }
 ```
 
+### Adicionar Overlay (Com Configurações)
+
+```bash
+POST http://localhost:3000/add-overlay
+Content-Type: application/json
+
+{
+  "imageUrl": "https://exemplo.com/imagem.jpg",
+  "title": "VOCÊ ESTÁ DESPERDIÇANDO SUA CREATINA?",
+  "category": "SUPLEMENTOS",
+  "config": {
+    "zoom": {
+      "enabled": true,
+      "factor": 1.3,
+      "focus": "center"
+    },
+    "colors": {
+      "SUPLEMENTOS": "#FF0000"
+    },
+    "fontSizes": {
+      "title": 42
+    }
+  }
+}
+```
+
 **imageUrl aceita:**
 - ✅ URL: `https://example.com/image.jpg`
 - ✅ Base64 com prefixo: `data:image/png;base64,iVBORw0KG...`
 - ✅ Base64 puro: `iVBORw0KG...` (PNG) ou `/9j/...` (JPEG)
+
+**config (opcional):**
+- `zoom`: Configurações de zoom inteligente
+- `colors`: Cores customizadas por categoria
+- `logoText`: Textos customizados do logo
+- `logoColorNutr` / `logoColorIA`: Cores do logo
+- `fontSizes`: Tamanhos de fonte customizados
 
 ## 🎨 Categorias e Cores
 
@@ -85,8 +155,33 @@ Content-Type: application/json
 
 ## 🎨 Logo NutrIA
 
-- "Nutr" - Branco (#FFFFFF)
-- "IA" - Laranja (#FF6B00)
+- "Nutr" - Branco (#FFFFFF) - **NEGRITO**
+- "IA" - Laranja (#FF6B00) - **NEGRITO**
+
+## ✨ Zoom Inteligente
+
+O microserviço aplica zoom inteligente nas imagens para melhor composição:
+
+- **Habilitado por padrão** (configurável via .env ou JSON)
+- **Fator de zoom:** 1.2 (20% de zoom) - ajustável
+- **Foco:** center, top ou bottom
+- **Mantém o foco** sem cortar partes importantes
+
+Exemplo de uso:
+```json
+{
+  "imageUrl": "...",
+  "title": "...",
+  "category": "...",
+  "config": {
+    "zoom": {
+      "enabled": true,
+      "factor": 1.3,
+      "focus": "center"
+    }
+  }
+}
+```
 
 ## 🖼️ Layout e Especificações
 
@@ -172,6 +267,20 @@ gunicorn -w 4 -b 0.0.0.0:3000 app:app
 - ✅ Código mais limpo e legível
 - ✅ Pillow é muito estável e maduro
 
-**Última atualização:** 10/11/2025  
-**Versão:** 1.0  
+## 📚 Documentação Adicional
+
+- `EXEMPLOS_CONFIG.md` - Guia completo de configuração
+- `CHANGELOG.md` - Histórico de versões
+- `.env.example` - Exemplo de configuração
+
+---
+
+**Última atualização:** 14/11/2025  
+**Versão:** 1.3  
 **Status:** ✅ Pronto para uso
+
+**Novidades v1.3:**
+- ✅ Zoom inteligente configurável
+- ✅ Logo em negrito
+- ✅ Configurações via .env e JSON
+- ✅ Correção automática "FOFOCA MAROMBA"

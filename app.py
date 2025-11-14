@@ -5,14 +5,27 @@ from io import BytesIO
 import base64
 import os
 import sys
+from dotenv import load_dotenv
+
+# Carregar variáveis de ambiente
+load_dotenv()
 
 app = Flask(__name__)
 
-# Configurações
-PORT = 3000
-FONT_SIZE_LOGO = 52
-FONT_SIZE_CATEGORY = 26
-FONT_SIZE_TITLE = 38
+# Configurações do .env com fallback
+PORT = int(os.getenv('PORT', 3000))
+FONT_SIZE_LOGO = int(os.getenv('FONT_SIZE_LOGO', 52))
+FONT_SIZE_CATEGORY = int(os.getenv('FONT_SIZE_CATEGORY', 26))
+FONT_SIZE_TITLE = int(os.getenv('FONT_SIZE_TITLE', 38))
+
+# Textos do logo
+TEXT_LOGO_PART1 = os.getenv('TEXT_LOGO_PART1', 'Nutr')
+TEXT_LOGO_PART2 = os.getenv('TEXT_LOGO_PART2', 'IA')
+
+# Configurações de zoom
+ZOOM_ENABLED = os.getenv('ZOOM_ENABLED', 'true').lower() == 'true'
+ZOOM_FACTOR = float(os.getenv('ZOOM_FACTOR', 1.2))
+ZOOM_FOCUS = os.getenv('ZOOM_FOCUS', 'center')
 
 # Caminhos de fontes por sistema operacional
 FONT_PATHS = {
@@ -30,18 +43,25 @@ FONT_PATHS = {
     ]
 }
 
-# Cores por categoria
+# Cores por categoria (do .env com fallback)
 CATEGORY_COLORS = {
-    'SUPLEMENTOS': '#00FF00',      # Verde
-    'TREINO': '#FF6B00',            # Laranja
-    'NUTRIÇÃO': '#00D4FF',          # Azul
-    'FOFOCA MAROMBA': '#FF00FF',    # Magenta (sem underscore)
-    'FITNESS': '#FFD700'            # Dourado
+    'SUPLEMENTOS': os.getenv('COLOR_SUPLEMENTOS', '#00FF00'),
+    'TREINO': os.getenv('COLOR_TREINO', '#FF6B00'),
+    'NUTRIÇÃO': os.getenv('COLOR_NUTRICAO', '#00D4FF'),
+    'FOFOCA MAROMBA': os.getenv('COLOR_FOFOCA_MAROMBA', '#FF00FF'),
+    'FITNESS': os.getenv('COLOR_FITNESS', '#FFD700')
 }
 
-# Cores do logo NutrIA
-LOGO_COLOR_NUTR = (255, 255, 255)  # Branco para "Nutr"
-LOGO_COLOR_IA = (255, 107, 0)      # Laranja para "IA"
+# Cores do logo NutrIA (do .env com fallback)
+def parse_rgb(env_var, default):
+    """Parse RGB do formato '255,255,255' para tupla"""
+    try:
+        return tuple(map(int, os.getenv(env_var, default).split(',')))
+    except:
+        return tuple(map(int, default.split(',')))
+
+LOGO_COLOR_NUTR = parse_rgb('LOGO_COLOR_NUTR', '255,255,255')
+LOGO_COLOR_IA = parse_rgb('LOGO_COLOR_IA', '255,107,0')
 
 def hex_to_rgb(hex_color):
     """Converte cor hexadecimal para RGB"""
@@ -127,7 +147,51 @@ def download_image(url_or_base64):
         response.raise_for_status()
         return Image.open(BytesIO(response.content))
 
-def add_overlay(image_url_or_base64, title, category):
+def apply_smart_zoom(img, target_size=(1080, 1080), zoom_factor=1.2, focus='center'):
+    """
+    Aplica zoom inteligente na imagem mantendo o foco
+    
+    Args:
+        img: Imagem PIL
+        target_size: Tamanho final desejado (width, height)
+        zoom_factor: Fator de zoom (1.2 = 20% maior)
+        focus: Ponto de foco ('center', 'top', 'bottom')
+    
+    Returns:
+        Imagem redimensionada com zoom aplicado
+    """
+    target_width, target_height = target_size
+    
+    # Calcular novo tamanho com zoom
+    zoomed_width = int(target_width * zoom_factor)
+    zoomed_height = int(target_height * zoom_factor)
+    
+    # Redimensionar imagem para o tamanho com zoom
+    img_zoomed = img.resize((zoomed_width, zoomed_height), Image.Resampling.LANCZOS)
+    
+    # Calcular posição de crop baseado no foco
+    if focus == 'top':
+        # Foco no topo
+        left = (zoomed_width - target_width) // 2
+        top = 0
+    elif focus == 'bottom':
+        # Foco na parte inferior
+        left = (zoomed_width - target_width) // 2
+        top = zoomed_height - target_height
+    else:  # center (padrão)
+        # Foco no centro
+        left = (zoomed_width - target_width) // 2
+        top = (zoomed_height - target_height) // 2
+    
+    right = left + target_width
+    bottom = top + target_height
+    
+    # Fazer crop para o tamanho final
+    img_cropped = img_zoomed.crop((left, top, right, bottom))
+    
+    return img_cropped
+
+def add_overlay(image_url_or_base64, title, category, config=None):
     """
     Adiciona overlay de texto na imagem
     
@@ -141,14 +205,62 @@ def add_overlay(image_url_or_base64, title, category):
     - URL: https://example.com/image.jpg
     - Base64 com prefixo: data:image/png;base64,iVBORw0KG...
     - Base64 puro: iVBORw0KG... (PNG) ou /9j/... (JPEG)
+    
+    Args:
+        config: Dicionário opcional com configurações customizadas:
+            - colors: dict com cores customizadas por categoria
+            - logoText: dict com 'part1' e 'part2' para customizar logo
+            - fontSizes: dict com 'logo', 'category', 'title'
+            - zoom: dict com 'enabled', 'factor', 'focus'
     """
+    
+    # Configurações padrão (do .env)
+    cfg = {
+        'colors': CATEGORY_COLORS.copy(),
+        'logoColorNutr': LOGO_COLOR_NUTR,
+        'logoColorIA': LOGO_COLOR_IA,
+        'logoText': {'part1': TEXT_LOGO_PART1, 'part2': TEXT_LOGO_PART2},
+        'fontSizes': {
+            'logo': FONT_SIZE_LOGO,
+            'category': FONT_SIZE_CATEGORY,
+            'title': FONT_SIZE_TITLE
+        },
+        'zoom': {
+            'enabled': ZOOM_ENABLED,
+            'factor': ZOOM_FACTOR,
+            'focus': ZOOM_FOCUS
+        }
+    }
+    
+    # Sobrescrever com configurações customizadas se fornecidas
+    if config:
+        if 'colors' in config:
+            cfg['colors'].update(config['colors'])
+        if 'logoColorNutr' in config:
+            cfg['logoColorNutr'] = tuple(config['logoColorNutr'])
+        if 'logoColorIA' in config:
+            cfg['logoColorIA'] = tuple(config['logoColorIA'])
+        if 'logoText' in config:
+            cfg['logoText'].update(config['logoText'])
+        if 'fontSizes' in config:
+            cfg['fontSizes'].update(config['fontSizes'])
+        if 'zoom' in config:
+            cfg['zoom'].update(config['zoom'])
     
     # Baixar ou decodificar imagem
     img = download_image(image_url_or_base64)
     
-    # Redimensionar para 1080x1080 (Instagram square)
-    # IMPORTANTE: Este é o tamanho exato que deve ser usado no DALL-E 3
-    img = img.resize((1080, 1080), Image.Resampling.LANCZOS)
+    # Aplicar zoom inteligente se habilitado
+    if cfg['zoom']['enabled']:
+        img = apply_smart_zoom(
+            img, 
+            target_size=(1080, 1080),
+            zoom_factor=cfg['zoom']['factor'],
+            focus=cfg['zoom']['focus']
+        )
+    else:
+        # Redimensionar normalmente para 1080x1080 (Instagram square)
+        img = img.resize((1080, 1080), Image.Resampling.LANCZOS)
     
     # Converter para RGBA se necessário
     if img.mode != 'RGBA':
@@ -165,24 +277,30 @@ def add_overlay(image_url_or_base64, title, category):
         draw.rectangle([(0, y), (1080, y+1)], fill=(0, 0, 0, alpha))
     
     # Carregar fontes com fallback inteligente
-    font_logo = load_font(FONT_SIZE_LOGO, bold=False)
-    font_category = load_font(FONT_SIZE_CATEGORY, bold=True)
-    font_title = load_font(FONT_SIZE_TITLE, bold=True)
+    # Logo usa fonte BOLD agora para "NUTRIA" mais grosso
+    font_logo = load_font(cfg['fontSizes']['logo'], bold=True)
+    font_category = load_font(cfg['fontSizes']['category'], bold=True)
+    font_title = load_font(cfg['fontSizes']['title'], bold=True)
     
     # Logo "NutrIA" (canto superior esquerdo)
-    # Desenhar "Nutr" em branco
-    draw.text((40, 80), "Nutr", fill=LOGO_COLOR_NUTR + (255,), font=font_logo)
+    logo_part1 = cfg['logoText']['part1']
+    logo_part2 = cfg['logoText']['part2']
     
-    # Calcular posição do "IA" (após "Nutr")
-    bbox_nutr = draw.textbbox((40, 80), "Nutr", font=font_logo)
-    x_ia = bbox_nutr[2]  # Posição X após "Nutr"
+    # Desenhar primeira parte do logo (ex: "Nutr")
+    draw.text((40, 80), logo_part1, fill=cfg['logoColorNutr'] + (255,), font=font_logo)
     
-    # Desenhar "IA" em laranja
-    draw.text((x_ia, 80), "IA", fill=LOGO_COLOR_IA + (255,), font=font_logo)
+    # Calcular posição da segunda parte (após primeira parte)
+    bbox_part1 = draw.textbbox((40, 80), logo_part1, font=font_logo)
+    x_part2 = bbox_part1[2]  # Posição X após primeira parte
+    
+    # Desenhar segunda parte do logo (ex: "IA")
+    draw.text((x_part2, 80), logo_part2, fill=cfg['logoColorIA'] + (255,), font=font_logo)
     
     # Categoria (canto inferior esquerdo, mais para cima)
-    category_color = hex_to_rgb(CATEGORY_COLORS.get(category.upper(), '#00FF00'))
-    draw.text((40, 880), category.upper(), fill=category_color + (255,), font=font_category)
+    # Normalizar categoria removendo underscores
+    category_normalized = category.upper().replace('_', ' ')
+    category_color = hex_to_rgb(cfg['colors'].get(category_normalized, '#00FF00'))
+    draw.text((40, 880), category_normalized, fill=category_color + (255,), font=font_category)
     
     # Título (canto inferior esquerdo, quebrado em múltiplas linhas)
     # Limitar a 7-15 palavras (padrão notjournal.ai)
@@ -250,6 +368,32 @@ def add_overlay_endpoint():
     - URL: https://example.com/image.jpg
     - Base64 com prefixo: data:image/png;base64,iVBORw0KG...
     - Base64 puro: iVBORw0KG... (PNG) ou /9j/... (JPEG)
+    
+    Configurações opcionais via JSON:
+    {
+        "imageUrl": "...",
+        "title": "...",
+        "category": "...",
+        "config": {
+            "colors": {
+                "SUPLEMENTOS": "#00FF00"
+            },
+            "logoText": {
+                "part1": "Nutr",
+                "part2": "IA"
+            },
+            "fontSizes": {
+                "logo": 52,
+                "category": 26,
+                "title": 38
+            },
+            "zoom": {
+                "enabled": true,
+                "factor": 1.2,
+                "focus": "center"
+            }
+        }
+    }
     """
     try:
         data = request.get_json()
@@ -259,15 +403,17 @@ def add_overlay_endpoint():
             return jsonify({
                 'error': 'Missing required fields',
                 'required': ['imageUrl', 'title', 'category'],
-                'note': 'imageUrl can be a URL or base64 string'
+                'optional': ['config'],
+                'note': 'imageUrl can be a URL or base64 string. config is optional for customization.'
             }), 400
         
         image_url = data['imageUrl']
         title = data['title']
         category = data['category']
+        config = data.get('config', None)  # Configurações opcionais
         
-        # Adicionar overlay
-        result_image = add_overlay(image_url, title, category)
+        # Adicionar overlay com configurações customizadas
+        result_image = add_overlay(image_url, title, category, config)
         
         # Converter para base64
         buffer = BytesIO()

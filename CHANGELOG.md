@@ -1,5 +1,88 @@
 # Changelog - Microserviço Overlay Python
 
+## Versão 1.3 - 14/11/2025
+
+### ✨ Novas Funcionalidades
+
+#### 1. Zoom Inteligente
+- ✅ Aplica zoom na imagem mantendo o foco sem cortar partes importantes
+- ✅ Configurável via .env ou JSON da requisição
+- ✅ Opções de foco: `center`, `top`, `bottom`
+- ✅ Fator de zoom ajustável (padrão: 1.2 = 20% de zoom)
+
+#### 2. Logo "NUTRIA" em Negrito
+- ✅ Fonte bold aplicada ao logo completo
+- ✅ Texto mais grosso e impactante
+- ✅ Mantém cores bicolor (branco + laranja)
+
+#### 3. Configurações via .env
+- ✅ Arquivo `.env` para configurações padrão
+- ✅ Tamanhos de fonte configuráveis
+- ✅ Cores configuráveis (logo e categorias)
+- ✅ Textos do logo configuráveis
+- ✅ Configurações de zoom
+
+#### 4. Configurações via JSON (API)
+- ✅ Sobrescrever qualquer configuração por requisição
+- ✅ Customizar cores por categoria
+- ✅ Customizar textos do logo
+- ✅ Customizar tamanhos de fonte
+- ✅ Customizar zoom (habilitar/desabilitar, fator, foco)
+
+#### 5. Correção "FOFOCA MAROMBA"
+- ✅ Remove underscore automaticamente
+- ✅ `FOFOCA_MAROMBA` → `FOFOCA MAROMBA`
+- ✅ Funciona tanto no input quanto no display
+
+### 📝 Exemplo de Uso com Zoom
+
+```json
+{
+  "imageUrl": "https://example.com/image.jpg",
+  "title": "Como ganhar massa muscular rapidamente",
+  "category": "TREINO",
+  "config": {
+    "zoom": {
+      "enabled": true,
+      "factor": 1.3,
+      "focus": "center"
+    }
+  }
+}
+```
+
+### 📝 Exemplo de Uso com Configurações Customizadas
+
+```json
+{
+  "imageUrl": "https://example.com/image.jpg",
+  "title": "Melhores suplementos para hipertrofia",
+  "category": "SUPLEMENTOS",
+  "config": {
+    "colors": {
+      "SUPLEMENTOS": "#FF0000"
+    },
+    "logoText": {
+      "part1": "Fit",
+      "part2": "AI"
+    },
+    "fontSizes": {
+      "logo": 60,
+      "category": 30,
+      "title": 42
+    }
+  }
+}
+```
+
+### 📚 Documentação
+
+- ✅ `EXEMPLOS_CONFIG.md` - Guia completo de configuração
+- ✅ Exemplos de uso via .env e JSON
+- ✅ Todas as opções documentadas
+
+---
+
 ## Versão 1.2 - 11/11/2025
 
 ### ✨ Novo: Suporte a Base64
