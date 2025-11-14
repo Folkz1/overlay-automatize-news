@@ -43,13 +43,27 @@ FONT_PATHS = {
     ]
 }
 
+# Função para validar cor hexadecimal
+def get_valid_color(env_var, default):
+    """Retorna cor do .env ou default se inválida"""
+    color = os.getenv(env_var, default)
+    if not color or not color.strip():
+        return default
+    # Garantir que começa com #
+    if not color.startswith('#'):
+        color = '#' + color
+    # Validar formato
+    if len(color) != 7:
+        return default
+    return color
+
 # Cores por categoria (do .env com fallback)
 CATEGORY_COLORS = {
-    'SUPLEMENTOS': os.getenv('COLOR_SUPLEMENTOS', '#00FF00'),
-    'TREINO': os.getenv('COLOR_TREINO', '#FF6B00'),
-    'NUTRIÇÃO': os.getenv('COLOR_NUTRICAO', '#00D4FF'),
-    'FOFOCA MAROMBA': os.getenv('COLOR_FOFOCA_MAROMBA', '#FF00FF'),
-    'FITNESS': os.getenv('COLOR_FITNESS', '#FFD700')
+    'SUPLEMENTOS': get_valid_color('COLOR_SUPLEMENTOS', '#00FF00'),
+    'TREINO': get_valid_color('COLOR_TREINO', '#FF6B00'),
+    'NUTRIÇÃO': get_valid_color('COLOR_NUTRICAO', '#00D4FF'),
+    'FOFOCA MAROMBA': get_valid_color('COLOR_FOFOCA_MAROMBA', '#FF00FF'),
+    'FITNESS': get_valid_color('COLOR_FITNESS', '#FFD700')
 }
 
 # Cores do logo NutrIA (do .env com fallback)
@@ -65,8 +79,19 @@ LOGO_COLOR_IA = parse_rgb('LOGO_COLOR_IA', '255,107,0')
 
 def hex_to_rgb(hex_color):
     """Converte cor hexadecimal para RGB"""
+    if not hex_color:
+        return (0, 255, 0)  # Verde padrão se cor vazia
+    
     hex_color = hex_color.lstrip('#')
-    return tuple(int(hex_color[i:i+2], 16) for i in (0, 2, 4))
+    
+    # Validar se tem 6 caracteres hexadecimais
+    if len(hex_color) != 6:
+        return (0, 255, 0)  # Verde padrão se formato inválido
+    
+    try:
+        return tuple(int(hex_color[i:i+2], 16) for i in (0, 2, 4))
+    except ValueError:
+        return (0, 255, 0)  # Verde padrão se conversão falhar
 
 def load_font(size, bold=False):
     """
@@ -235,7 +260,34 @@ def add_overlay(image_url_or_base64, title, category, config=None):
     # Sobrescrever com configurações customizadas se fornecidas
     if config:
         if 'colors' in config:
-            cfg['colors'].update(config['colors'])
+            # Validar cores customizadas antes de aplicar
+            for cat, color in config['colors'].items():
+                print(f"DEBUG: Validando cor para {cat}: '{color}'")
+                if not color or not color.strip():
+                    # Cor vazia, não atualizar (manter padrão)
+                    print(f"DEBUG: Cor vazia para {cat}, mantendo padrão")
+                    continue
+                
+                # Validar formato
+                color_clean = color.strip()
+                if not color_clean.startswith('#'):
+                    color_clean = '#' + color_clean
+                
+                print(f"DEBUG: Cor limpa: '{color_clean}', len={len(color_clean)}")
+                
+                # Verificar se tem 7 caracteres e são hexadecimais válidos
+                if len(color_clean) == 7:
+                    try:
+                        # Tentar converter para validar
+                        int(color_clean[1:], 16)
+                        cfg['colors'][cat] = color_clean
+                        print(f"DEBUG: Cor válida aplicada para {cat}: {color_clean}")
+                    except ValueError:
+                        # Cor inválida, não atualizar (manter padrão)
+                        print(f"DEBUG: Cor inválida para {cat}, mantendo padrão")
+                        pass
+                else:
+                    print(f"DEBUG: Tamanho inválido para {cat}, mantendo padrão")
         if 'logoColorNutr' in config:
             cfg['logoColorNutr'] = tuple(config['logoColorNutr'])
         if 'logoColorIA' in config:
@@ -299,7 +351,12 @@ def add_overlay(image_url_or_base64, title, category, config=None):
     # Categoria (canto inferior esquerdo, mais para cima)
     # Normalizar categoria removendo underscores
     category_normalized = category.upper().replace('_', ' ')
-    category_color = hex_to_rgb(cfg['colors'].get(category_normalized, '#00FF00'))
+    # Obter cor da categoria com fallback para verde
+    category_color_hex = cfg['colors'].get(category_normalized, '#00FF00')
+    # Garantir que a cor não está vazia
+    if not category_color_hex or not category_color_hex.strip():
+        category_color_hex = '#00FF00'
+    category_color = hex_to_rgb(category_color_hex)
     draw.text((40, 880), category_normalized, fill=category_color + (255,), font=font_category)
     
     # Título (canto inferior esquerdo, quebrado em múltiplas linhas)
